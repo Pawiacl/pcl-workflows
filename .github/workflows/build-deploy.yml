@@ -60,7 +60,7 @@ jobs:
     steps:
       - uses: azure/login@v2
         with:
-          client-id: CLIENT_ID_FROM_STEP_2
+          client-id: 250a76ec-d02a-4c82-8cd5-ae40fa834a6f
           tenant-id: ce1492f0-18bc-4cd6-8f98-94e87e893543
           subscription-id: 7adb4c4d-a402-4adf-b71d-67986f3eed1f
 
