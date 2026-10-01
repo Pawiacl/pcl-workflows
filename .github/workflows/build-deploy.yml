@@ -1,0 +1,73 @@
+name: build-deploy
+
+on:
+  workflow_call:
+    inputs:
+      container-app:
+        required: true
+        type: string
+      resource-group:
+        required: false
+        type: string
+        default: rg-pcl-dev
+      deploy:
+        required: false
+        type: boolean
+        default: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    outputs:
+      image: ${{ steps.meta.outputs.repo }}:${{ steps.meta.outputs.tag }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - id: meta
+        run: |
+          echo "repo=ghcr.io/${GITHUB_REPOSITORY,,}" >> "$GITHUB_OUTPUT"
+          echo "tag=${GITHUB_SHA::7}" >> "$GITHUB_OUTPUT"
+
+      - uses: docker/setup-buildx-action@v3
+
+      - if: inputs.deploy
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ github.token }}
+
+      - uses: docker/build-push-action@v6
+        with:
+          context: .
+          platforms: linux/amd64
+          push: ${{ inputs.deploy }}
+          tags: |
+            ${{ steps.meta.outputs.repo }}:${{ steps.meta.outputs.tag }}
+            ${{ steps.meta.outputs.repo }}:dev
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  deploy:
+    if: inputs.deploy
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+    steps:
+      - uses: azure/login@v2
+        with:
+          client-id: CLIENT_ID_FROM_STEP_2
+          tenant-id: ce1492f0-18bc-4cd6-8f98-94e87e893543
+          subscription-id: 7adb4c4d-a402-4adf-b71d-67986f3eed1f
+
+      - uses: azure/cli@v2
+        with:
+          inlineScript: |
+            az containerapp update \
+              --name ${{ inputs.container-app }} \
+              --resource-group ${{ inputs.resource-group }} \
+              --image ${{ needs.build.outputs.image }}
