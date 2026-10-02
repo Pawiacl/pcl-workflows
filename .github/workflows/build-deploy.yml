@@ -44,12 +44,25 @@ jobs:
         with:
           context: .
           platforms: linux/amd64
-          push: ${{ inputs.deploy }}
+          load: true
+          push: false
           tags: |
             ${{ steps.meta.outputs.repo }}:${{ steps.meta.outputs.tag }}
             ${{ steps.meta.outputs.repo }}:dev
           cache-from: type=gha
           cache-to: type=gha,mode=max
+
+            # trivy-action v0.36.0
+      - uses: aquasecurity/trivy-action@a9c7b0f06e461e9d4b4d1711f154ee024b8d7ab8
+        with:
+          image-ref: ${{ steps.meta.outputs.repo }}:${{ steps.meta.outputs.tag }}
+          severity: CRITICAL,HIGH
+          ignore-unfixed: true
+          exit-code: "0"
+          format: table
+
+      - if: inputs.deploy
+        run: docker push --all-tags ${{ steps.meta.outputs.repo }}
 
   deploy:
     if: inputs.deploy
